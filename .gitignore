@@ -1,4 +1,5 @@
 proc_dir_ex.c
+proc_fs_ex.c
 *.cmd
 *.mod*
 *.dwo
