@@ -1,0 +1,7 @@
+proc_dir_ex.c
+*.cmd
+*.mod*
+*.dwo
+*.o
+Module.symvers
+modules.order
