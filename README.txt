@@ -2,13 +2,13 @@
 ring 0 memory dumper for linux
 
 -- usage --
-simply read/write /proc/<pid> to directly read and modify its memory
+simply read/write /proc/r0memdump/<pid> to directly read and modify its memory
 (pid being the pid of the proc u want to fuck with>)
 
 examples:
-hexdumping memory --  hexdump -C /proc/<pid>
-memory scanning -- grep "string" /proc/<pid>
-memory editing -- dd if=payload of=/proc/<pid> skip=offset
+hexdumping memory --  hexdump -C /proc/r0memdump/<pid>
+memory scanning -- grep "string" /proc/r0memdump/<pid>
+memory editing -- dd if=payload of=/proc/r0memdump/<pid> skip=offset
 
 and more !
 
