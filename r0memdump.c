@@ -13,7 +13,6 @@
 #define procfs_name "r0memdump"
 #define PROCFS_MAX_SIZE 1024
 
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("null333");
 MODULE_DESCRIPTION("ring 0 memory dumper, get mogged jimmy");
@@ -66,6 +65,7 @@ static void update_pids(struct work_struct *w)
                     in_list = 1;
                     break;
                 }
+                cpmd_info = cpmd_info->next;
             }
         }
         else
@@ -84,7 +84,7 @@ static void update_pids(struct work_struct *w)
         {
             struct pmemdump_info *tmp = cpmd_info;
             cpmd_info->next = (struct pmemdump_info *) vmalloc(sizeof(struct pmemdump_info));
-            cpmd_info = cpmd_info->next; // FIX; null pointer deref here
+            cpmd_info = cpmd_info->next; // FIX; null pointer deref here ?
             cpmd_info->prev = tmp;
             cpmd_info->pid = task_list->pid;
             sprintf(cpmd_info->name, "%d", cpmd_info->pid);
@@ -96,14 +96,16 @@ static void update_pids(struct work_struct *w)
     struct pmemdump_info *cpmd_info = pmd_info_list;
     if (cpmd_info)
     {
-        while (cpmd_info->next)
+        while (cpmd_info->next != NULL)
         {
+            struct pmemdump_info *tmp = cpmd_info->next;
             if (find_vpid(cpmd_info->pid) == 0)
             {
                 proc_remove(cpmd_info->proc_entry);
                 cpmd_info->prev->next = cpmd_info->next;
                 vfree(cpmd_info);
             }
+            cpmd_info = tmp;
         }
     }
 }
@@ -128,7 +130,7 @@ static ssize_t procfile_read(struct file *file, char __user *buffer, size_t coun
     if (cpmd_info)
     {
         printk("r0memdump DEBUG -- got here cpmd_info exists");
-        while (cpmd_info->next)
+        while (cpmd_info->next != NULL)
         {
             printk("r0memdump DEBUG -- cpmd info name: %s", cpmd_info->name);
             if (strcmp(cpmd_info->name, file->f_path.dentry->d_name.name) == 0)
@@ -136,8 +138,10 @@ static ssize_t procfile_read(struct file *file, char __user *buffer, size_t coun
                 // TODO: first copy from user with pid of requested proc to tmp buffer
                 memset(&procfs_buffer, 0, PROCFS_MAX_SIZE);
                 memcpy(&cpmd_info->name, &procfs_buffer, strlen(cpmd_info->name));
+                printk("r0memdump DEBUG -- mem ops failed");
                 if (*offset > 0 || count < PROCFS_MAX_SIZE)
                 {
+                    printk("r0memdump DEBUG -- returned");
                     return 0;
                 }
                 printk("r0memdump DEBUG -- got here strcmp");
@@ -145,6 +149,7 @@ static ssize_t procfile_read(struct file *file, char __user *buffer, size_t coun
                 *offset = procfs_buffer_size;
                 return procfs_buffer_size;
             }
+            cpmd_info = cpmd_info->next;
         }
     }
     return 0;
