@@ -1,0 +1,1 @@
+cmd_/home/null/Desktop/projects/memscanner/Module.symvers := sed 's/ko$$/o/' /home/null/Desktop/projects/memscanner/modules.order | scripts/mod/modpost -m -a   -o /home/null/Desktop/projects/memscanner/Module.symvers -e -i Module.symvers   -T -
