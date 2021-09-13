@@ -1,1 +1,0 @@
-cmd_/home/null/Desktop/projects/memscanner/r0memdump.ko := ld -r -m elf_x86_64  --build-id=sha1  -T scripts/module.lds -o /home/null/Desktop/projects/memscanner/r0memdump.ko /home/null/Desktop/projects/memscanner/r0memdump.o /home/null/Desktop/projects/memscanner/r0memdump.mod.o;  true
