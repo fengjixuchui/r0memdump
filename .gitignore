@@ -3,7 +3,7 @@ proc_fs_ex.c
 *.cmd
 *.mod*
 *.dwo
-*.o
+*.o*
 Module.symvers
 modules.order
 junk/
