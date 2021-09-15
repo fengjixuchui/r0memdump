@@ -10,8 +10,10 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 
-#define procfs_name "r0memdump"
-#define PROCFS_MAX_SIZE 1024
+#define PROCFS_NAME "r0memdump"
+ // read PAGESIZE at a time and just zero umapped pages
+// #define PROCFS_BUFSIZ 409
+// #define PROCFS_MAX_SIZE 1024
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("null333");
@@ -28,8 +30,8 @@ static struct proc_ops procfs_ops =
     .proc_lseek = seq_lseek,
     .proc_release = single_release
 };
-static char procfs_buffer[PROCFS_MAX_SIZE];
-static unsigned long procfs_buffer_size = 0;
+// static char procfs_buffer[PROCFS_MAX_SIZE];
+// static unsigned long procfs_buffer_size = 0;
 
 
 struct pmemdump_info
@@ -129,25 +131,41 @@ static ssize_t procfile_read(struct file *file, char __user *buffer, size_t coun
     struct pmemdump_info *cpmd_info = pmd_info_list;
     if (cpmd_info)
     {
-        printk("r0memdump DEBUG -- got here cpmd_info exists");
         while (cpmd_info->next != NULL)
         {
-            printk("r0memdump DEBUG -- cpmd info name: %s", cpmd_info->name);
             if (strcmp(cpmd_info->name, file->f_path.dentry->d_name.name) == 0)
             {
                 // TODO: first copy from user with pid of requested proc to tmp buffer
-                memset(&procfs_buffer, 0, PROCFS_MAX_SIZE);
-                memcpy(&cpmd_info->name, &procfs_buffer, strlen(cpmd_info->name));
-                printk("r0memdump DEBUG -- mem ops failed");
-                if (*offset > 0 || count < PROCFS_MAX_SIZE)
+                // procfs_buffer_size = 0;
+                // memset(procfs_buffer, 0, PROCFS_MAX_SIZE);
+                // memcpy(procfs_buffer, cpmd_info->name, strlen(cpmd_info->name));
+                // procfs_buffer_size = strlen(cpmd_info->name);
+                // printk("r0memdump DEBUG -- mem ops passed");
+// //
+//                 if (*offset > 0 || count < PROCFS_MAX_SIZE)
+//                 {
+//                     printk("r0memdump DEBUG -- returned");
+//                     return 0;
+//                 }
+//                 printk("r0memdump DEBUG -- procfs_buffer contents: %s", procfs_buffer);
+//                 copy_to_user(buffer, procfs_buffer, procfs_buffer_size);
+//                 *offset = procfs_buffer_size;
+//                 return procfs_buffer_size;
+
+                // TODO: remove procfs_buffer
+                // TODO: loop copying from task to tmp buffer, then tmp to buffer
+                // TODO: get stack offset from /proc/self to get bottom of stack
+                uintptr_t c_addr;
+                for (c_addr = 0; c_addr < stack_bottom; c_addr += sysconf(_SC_PAGESIZE))
                 {
-                    printk("r0memdump DEBUG -- returned");
-                    return 0;
+                    task_struct from_ts = find_vpid(cpmd_info->pid);
+                    struct page *from_page;
+
+                    get_user_pages(from_ts, from_ts->mm, c_addr, 1, 0, 0, &from_page, NULL)
+                    char tmp[sysconf(_SC_PAGESIZE)] = {0}
+                    // TODO: copy from mapped page to tmp, or copy directly from mapped page without tmp
+                    copy_from_user(tmp, c_addr, sysconf(_SC_PAGESIZE));
                 }
-                printk("r0memdump DEBUG -- got here strcmp");
-                copy_to_user(buffer, procfs_buffer, procfs_buffer_size);
-                *offset = procfs_buffer_size;
-                return procfs_buffer_size;
             }
             cpmd_info = cpmd_info->next;
         }
@@ -157,7 +175,7 @@ static ssize_t procfile_read(struct file *file, char __user *buffer, size_t coun
 
 static int __init r0memdump_init(void)
 {
-    proc_dir = proc_mkdir(procfs_name, NULL);
+    proc_dir = proc_mkdir(PROCFS_NAME, NULL);
 
     if (!wq)
     {

@@ -6,3 +6,4 @@ proc_fs_ex.c
 *.o
 Module.symvers
 modules.order
+junk/
