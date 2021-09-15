@@ -9,18 +9,20 @@
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/memory.h>
+#include <linux/seq_file.h>
+#include <linux/pagemap.h>
 
 #define PROCFS_NAME "r0memdump"
- // read PAGESIZE at a time and just zero umapped pages
-// #define PROCFS_BUFSIZ 409
-// #define PROCFS_MAX_SIZE 1024
+#define __PAGESIZE 4096
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("null333");
 MODULE_DESCRIPTION("ring 0 memory dumper, get mogged jimmy");
 MODULE_VERSION("1.0");
 
-char zero_page[sysconf(_SC_PAGESIZE)] = {0};
+// TODO: replace with seqfile, on seqfile open, map all pages into kernel mem, on close unmap
+
+char zero_page[__PAGESIZE] = {0};
 
 static struct proc_dir_entry *proc_dir;
 static int procfile_open(struct inode *inode,struct file *file);
@@ -157,31 +159,32 @@ static ssize_t procfile_read(struct file *file, char __user *buffer, size_t coun
                 // TODO: remove procfs_buffer
                 // TODO: loop copying from task to tmp buffer, then tmp to buffer
                 // TODO: get stack offset from /proc/self to get bottom of stack
-                task_struct from_ts = find_vpid(cpmd_info->pid);
+                struct task_struct *from_ts = find_task_by_vpid(cpmd_info->pid);
                 // stackoverflow post never allocates this struct ??
                 // https://stackoverflow.com/questions/36337942/how-does-get-user-pages-work-for-linux-driver
-                struct page *from_page = vmalloc(struct page);
+                struct page *from_page; // = vmalloc(sizeof(struct page));
 
                 uintptr_t c_addr;
-                for (c_addr = 0; c_addr < TASK_SIZE; c_addr += sysconf(_SC_PAGESIZE))
+                for (c_addr = 0; c_addr < TASK_SIZE; c_addr += __PAGESIZE)
                 {
-                    down_read(&from_ts->mm->mmap_sem);
-                    get_user_pages(from_ts, from_ts->mm, c_addr, 1, 0, 0, &from_page, NULL)
+                    // down_read(&from_ts->mm->mmap_sem);
+                    // get_user_pages(from_ts, from_ts->mm, c_addr, 1, 0, 0, &from_page, NULL);
+                    get_user_pages_remote(from_ts->mm, c_addr, 0, &from_page, NULL, NULL);
                     if (from_page->mapping == NULL)
                     {
                         void *kaddr = kmap(from_page);
                         // copy directly from mapped page without tmp buffer
-                        copy_to_user((void *) ((char *) &buffer[0] + c_addr), kaddr, sysconf(_SC_PAGESIZE));
+                        copy_to_user((void *) ((char *) &buffer[0] + c_addr), kaddr, __PAGESIZE);
                     }
                     else
                     {
                         // if page isnt mapped zero it
-                        copy_to_user((void *) ((char *) &buffer[0] + c_addr), zero_page, sysconf(_SC_PAGESIZE));
+                        copy_to_user((void *) ((char *) &buffer[0] + c_addr), zero_page, __PAGESIZE);
                     }
 
                     vfree(from_page);
                     page_cache_release(from_page);
-                    up_read(&from_ts->mm->mmap_sem)
+                    // up_read(&from_ts->mm->mmap_sem);
                 }
             }
             cpmd_info = cpmd_info->next;
